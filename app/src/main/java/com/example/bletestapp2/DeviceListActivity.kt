@@ -14,13 +14,16 @@ import android.os.Bundle
 import android.os.Handler
 import android.view.*
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 
 
 class DeviceListActivity : AppCompatActivity(), AdapterView.OnItemClickListener {
 
-    internal class DeviceListAdapter(activity: Activity) : BaseAdapter() {
+    class DeviceListAdapter(activity: Activity) : BaseAdapter() {
+
         private val mDeviceList: ArrayList<BluetoothDevice>
         private val mInflator: LayoutInflater
 
@@ -73,8 +76,10 @@ class DeviceListActivity : AppCompatActivity(), AdapterView.OnItemClickListener 
             } else {
                 viewHolder = convertView.getTag() as ViewHolder
             }
+
             val device = mDeviceList[position]
             val deviceName = device.name
+
             if (null != deviceName && 0 < deviceName.length) {
                 viewHolder.deviceName!!.text = deviceName
             } else {
@@ -89,8 +94,8 @@ class DeviceListActivity : AppCompatActivity(), AdapterView.OnItemClickListener 
     companion object {
         private val REQUEST_ENABLEBLUETOOTH = 1 // Bluetooth機能の有効化要求時の識別コード
         private val SCAN_PERIOD: Long = 10000 // スキャン時間。単位はミリ秒。
-        val EXTRAS_DEVICE_NAME = "DEVICE_NAME"
-        val EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS"
+        const val EXTRAS_DEVICE_NAME = "DEVICE_NAME"
+        const val EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS"
     }
 
     // メンバー変数
@@ -141,9 +146,25 @@ class DeviceListActivity : AppCompatActivity(), AdapterView.OnItemClickListener 
         }
     }
 
+    // リストビューのアイテムクリック時の処理
+    override fun onItemClick(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+        // クリックされたアイテムの取得
+        val device = mDeviceListAdapter!!.getItem(position) as BluetoothDevice ?: return
+        // 戻り値の設定
+        val intent = Intent()
+        intent.putExtra(EXTRAS_DEVICE_NAME, device.name)
+        intent.putExtra(EXTRAS_DEVICE_ADDRESS, device.address)
+        setResult(RESULT_OK, intent)
+        finish()
+    }
+
     // 初回表示時、および、ポーズからの復帰時
     override fun onResume() {
         super.onResume()
+
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            locationPermissionRequest.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        }
 
         // デバイスのBluetooth機能の有効化要求
         requestBluetoothFeature()
@@ -180,6 +201,12 @@ class DeviceListActivity : AppCompatActivity(), AdapterView.OnItemClickListener 
             }
         }
         super.onActivityResult(requestCode, resultCode, data)
+    }
+
+    private val locationPermissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()){ isGranted: Boolean ->
+        if (!isGranted) {
+            finish()
+        }
     }
 
     // スキャンの開始
@@ -220,18 +247,6 @@ class DeviceListActivity : AppCompatActivity(), AdapterView.OnItemClickListener 
         invalidateOptionsMenu()
     }
 
-    // リストビューのアイテムクリック時の処理
-    override fun onItemClick(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-        // クリックされたアイテムの取得
-        val device = mDeviceListAdapter!!.getItem(position) as BluetoothDevice ?: return
-        // 戻り値の設定
-        val intent = Intent()
-        intent.putExtra(EXTRAS_DEVICE_NAME, device.name)
-        intent.putExtra(EXTRAS_DEVICE_ADDRESS, device.address)
-        setResult(RESULT_OK, intent)
-        finish()
-    }
-
     // オプションメニュー作成時の処理
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.activity_device_list, menu)
@@ -250,7 +265,7 @@ class DeviceListActivity : AppCompatActivity(), AdapterView.OnItemClickListener 
 
     // オプションメニューのアイテム選択時の処理
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when (item.getItemId()) {
+        when (item.itemId) {
             R.id.menuitem_scan -> startScan() // スキャンの開始
             R.id.menuitem_stop -> stopScan() // スキャンの停止
         }
