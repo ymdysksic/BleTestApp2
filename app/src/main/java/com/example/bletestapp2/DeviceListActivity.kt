@@ -18,7 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 
 
-class DeviceListActivity : AppCompatActivity() {
+class DeviceListActivity : AppCompatActivity(), AdapterView.OnItemClickListener {
 
     internal class DeviceListAdapter(activity: Activity) : BaseAdapter() {
         private val mDeviceList: ArrayList<BluetoothDevice>
@@ -86,10 +86,12 @@ class DeviceListActivity : AppCompatActivity() {
     }
 
     // 定数
-    private val REQUEST_ENABLEBLUETOOTH = 1 // Bluetooth機能の有効化要求時の識別コード
-    private val SCAN_PERIOD: Long = 10000 // スキャン時間。単位はミリ秒。
-    val EXTRAS_DEVICE_NAME = "DEVICE_NAME"
-    val EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS"
+    companion object {
+        private val REQUEST_ENABLEBLUETOOTH = 1 // Bluetooth機能の有効化要求時の識別コード
+        private val SCAN_PERIOD: Long = 10000 // スキャン時間。単位はミリ秒。
+        val EXTRAS_DEVICE_NAME = "DEVICE_NAME"
+        val EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS"
+    }
 
     // メンバー変数
     private var mBluetoothAdapter // BluetoothAdapter : Bluetooth処理で必要
@@ -165,20 +167,6 @@ class DeviceListActivity : AppCompatActivity() {
         }
         // デバイスのBluetooth機能が有効になっていないときは、有効化要求（ダイアログ表示）
         val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.BLUETOOTH_CONNECT
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return
-        }
         startActivityForResult(enableBtIntent, REQUEST_ENABLEBLUETOOTH)
     }
 
@@ -206,20 +194,6 @@ class DeviceListActivity : AppCompatActivity() {
         // スキャン開始（一定時間後にスキャン停止する）
         mHandler!!.postDelayed({
             mScanning = false
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_SCAN
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
-                return@postDelayed
-            }
             scanner.stopScan(mLeScanCallback)
 
             // メニューの更新
@@ -240,20 +214,6 @@ class DeviceListActivity : AppCompatActivity() {
         // BluetoothLeScannerの取得
         val scanner = mBluetoothAdapter!!.bluetoothLeScanner ?: return
         mScanning = false
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.BLUETOOTH_SCAN
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return
-        }
         scanner.stopScan(mLeScanCallback)
 
         // メニューの更新
@@ -261,7 +221,7 @@ class DeviceListActivity : AppCompatActivity() {
     }
 
     // リストビューのアイテムクリック時の処理
-    fun onItemClick(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+    override fun onItemClick(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
         // クリックされたアイテムの取得
         val device = mDeviceListAdapter!!.getItem(position) as BluetoothDevice ?: return
         // 戻り値の設定
