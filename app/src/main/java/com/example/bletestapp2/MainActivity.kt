@@ -14,7 +14,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import java.nio.ByteBuffer
 import java.util.*
 
 
@@ -26,7 +25,6 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         private val UUID_SERVICE_PRIVATE        : UUID = UUID.fromString("E95D6100-251D-470A-A062-FA1922DFA9A8")
         private val UUID_CHARACTERISTIC_PRIVATE1: UUID = UUID.fromString("E95D9250-251D-470A-A062-FA1922DFA9A8")
         private val UUID_CHARACTERISTIC_PRIVATE2: UUID = UUID.fromString("E95D1B25-251D-470A-A062-FA1922DFA9A8")
-        private val CLIENT_CHARACTERISTIC_CONFIG: UUID = UUID.fromString("000002902-0000-1000-8000-00805f9b34fb")
         // for Notification
         private val UUID_NOTIFY = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
     }
@@ -58,6 +56,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 return
             }
             if (BluetoothProfile.STATE_CONNECTED == newState) {    // 接続完了
+                mBluetoothGatt!!.discoverServices() // サービス検索
                 runOnUiThread { // GUIアイテムの有効無効の設定
                     // 切断ボタンを有効にする
                     mButton_Disconnect.isEnabled = true
@@ -114,7 +113,6 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             if (UUID_CHARACTERISTIC_PRIVATE1 == characteristic.uuid) {    // キャラクタリスティック１：データサイズは、2バイト（数値を想定。0～65,535）
                 val intChara = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT8, 0)
                 val strChara = "${intChara}℃"
-//                val strChara: String = java.lang.String.valueOf(bb.getShort())
                 runOnUiThread { // GUIアイテムへの反映
                     (findViewById<View>(R.id.textview_readchara1) as TextView).text = strChara
                 }
@@ -139,7 +137,6 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             if (UUID_CHARACTERISTIC_PRIVATE1 == characteristic.uuid) {    // キャラクタリスティック１：データサイズは、2バイト（数値を想定。0～65,535）
                 val intChara = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT8, 0)
                 val strChara = "${intChara}℃"
-//                val strChara: String = java.lang.String.valueOf(bb.getShort())
                 runOnUiThread { // GUIアイテムへの反映
                     (findViewById<View>(R.id.textview_notifychara1) as TextView).text = strChara
                 }
