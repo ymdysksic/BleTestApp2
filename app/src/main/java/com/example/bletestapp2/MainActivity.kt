@@ -9,6 +9,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,10 +23,12 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     // 定数s
     companion object {
         // Private Service
-        private val UUID_SERVICE_PRIVATE: UUID = UUID.fromString("E95D6100-251D-470A-A062-FA1922DFA9A8")
+        private val UUID_SERVICE_PRIVATE        : UUID = UUID.fromString("E95D6100-251D-470A-A062-FA1922DFA9A8")
         private val UUID_CHARACTERISTIC_PRIVATE1: UUID = UUID.fromString("E95D9250-251D-470A-A062-FA1922DFA9A8")
         private val UUID_CHARACTERISTIC_PRIVATE2: UUID = UUID.fromString("E95D1B25-251D-470A-A062-FA1922DFA9A8")
         private val CLIENT_CHARACTERISTIC_CONFIG: UUID = UUID.fromString("000002902-0000-1000-8000-00805f9b34fb")
+        // for Notification
+        private val UUID_NOTIFY = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
     }
 
     // 定数
@@ -37,6 +40,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     private var mDeviceAddress = "" // デバイスアドレス
     private var mBluetoothGatt: BluetoothGatt? = null // Gattサービスの検索、キャラスタリスティックの読み書き
 
+    // 指定した機能が使用可能かどうかを返す関数
     private fun PackageManager.missingSystemFeature(name: String): Boolean = !hasSystemFeature(name)
 
     // GUIアイテム
@@ -44,6 +48,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     private lateinit var mButton_Disconnect: Button // 切断ボタン
     private lateinit var mButton_ReadChara1: Button // キャラクタリスティック１の読み込みボタン
     private lateinit var mButton_ReadChara2: Button // キャラクタリスティック２の読み込みボタン
+    private lateinit var mCheckBox_NotifyChara1: CheckBox // キャラクタリスティック１の変更通知ON/OFFチェックボックス
 
     // BluetoothGattコールバック
     private val mGattcallback: BluetoothGattCallback = object : BluetoothGattCallback() {
@@ -67,6 +72,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                     // 読み込みボタンを無効にする（通知チェックボックスはチェック状態を維持。通知ONで切断した場合、再接続時に通知は再開するので）
                     mButton_ReadChara1.isEnabled = false
                     mButton_ReadChara2.isEnabled = false
+                    mCheckBox_NotifyChara1.isEnabled = false
                 }
                 return
             }
@@ -84,10 +90,11 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 if (null == service || null == service.uuid) {
                     continue
                 }
-                if (UUID_SERVICE_PRIVATE.equals(service.uuid)) {    // プライベートサービス
+                if (UUID_SERVICE_PRIVATE == service.uuid) {    // プライベートサービス
                     runOnUiThread { // GUIアイテムの有効無効の設定
                         mButton_ReadChara1.isEnabled = true
                         mButton_ReadChara2.isEnabled = true
+                        mCheckBox_NotifyChara1.isEnabled = true
                     }
                     continue
                 }
@@ -122,6 +129,23 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 return
             }
         }
+
+        // キャラクタリスティック変更が通知されたときの処理
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic
+        ) {
+            // キャラクタリスティックごとに個別の処理
+            if (UUID_CHARACTERISTIC_PRIVATE1 == characteristic.uuid) {    // キャラクタリスティック１：データサイズは、2バイト（数値を想定。0～65,535）
+                val intChara = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT8, 0)
+                val strChara = "${intChara}℃"
+//                val strChara: String = java.lang.String.valueOf(bb.getShort())
+                runOnUiThread { // GUIアイテムへの反映
+                    (findViewById<View>(R.id.textview_notifychara1) as TextView).text = strChara
+                }
+                return
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -137,6 +161,8 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         mButton_ReadChara1.setOnClickListener(this)
         mButton_ReadChara2 = findViewById(R.id.button_readchara2)
         mButton_ReadChara2.setOnClickListener(this)
+        mCheckBox_NotifyChara1 = findViewById(R.id.checkbox_notifychara1)
+        mCheckBox_NotifyChara1.setOnClickListener(this)
 
         // Android端末がBLEをサポートしてるかの確認
         packageManager.takeIf { it.missingSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) }?.also {
@@ -167,6 +193,8 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         mButton_Disconnect.isEnabled = false
         mButton_ReadChara1.isEnabled = false
         mButton_ReadChara2.isEnabled = false
+        mCheckBox_NotifyChara1.isEnabled = false
+        mCheckBox_NotifyChara1.isEnabled = false
 
         // デバイスアドレスが空でなければ、接続ボタンを有効にする。
         if(mDeviceAddress!= "") {
@@ -224,6 +252,11 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             readCharacteristic(UUID_SERVICE_PRIVATE, UUID_CHARACTERISTIC_PRIVATE2);
             return
         }
+        if (mCheckBox_NotifyChara1.id == v.getId())
+        {
+            setCharacteristicNotification(UUID_SERVICE_PRIVATE, UUID_CHARACTERISTIC_PRIVATE1, mCheckBox_NotifyChara1.isChecked())
+            return
+        }
     }
 
     private var enableBluetoothLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -273,6 +306,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 (findViewById<View>(R.id.textview_deviceaddress) as TextView).text = mDeviceAddress
                 (findViewById<View>(R.id.textview_readchara1) as TextView).text = ""
                 (findViewById<View>(R.id.textview_readchara2) as TextView).text = ""
+                (findViewById<View>(R.id.textview_notifychara1) as TextView).text = ""
             }
         }
         super.onActivityResult(requestCode, resultCode, data)
@@ -330,6 +364,8 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         mButton_Disconnect.isEnabled = false
         mButton_ReadChara1.isEnabled = false
         mButton_ReadChara2.isEnabled = false
+        mCheckBox_NotifyChara1.isEnabled = false
+        mCheckBox_NotifyChara1.isEnabled = false
     }
 
     // キャラクタリスティックの読み込み
@@ -340,5 +376,20 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         val blechar =
             mBluetoothGatt!!.getService(uuid_service).getCharacteristic(uuid_characteristic)
         mBluetoothGatt!!.readCharacteristic(blechar)
+    }
+
+    private fun setCharacteristicNotification(
+        uuid_service: UUID,
+        uuid_characteristic: UUID,
+        enable: Boolean
+    ) {
+        if (null == mBluetoothGatt) {
+            return
+        }
+        val blechar = mBluetoothGatt!!.getService(uuid_service).getCharacteristic(uuid_characteristic)
+        mBluetoothGatt!!.setCharacteristicNotification(blechar, enable)
+        val descriptor = blechar.getDescriptor(UUID_NOTIFY)
+        descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+        mBluetoothGatt!!.writeDescriptor(descriptor)
     }
 }
