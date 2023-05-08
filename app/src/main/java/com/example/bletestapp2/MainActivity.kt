@@ -25,6 +25,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         private val UUID_SERVICE_PRIVATE: UUID = UUID.fromString("E95D6100-251D-470A-A062-FA1922DFA9A8")
         private val UUID_CHARACTERISTIC_PRIVATE1: UUID = UUID.fromString("E95D9250-251D-470A-A062-FA1922DFA9A8")
         private val UUID_CHARACTERISTIC_PRIVATE2: UUID = UUID.fromString("E95D1B25-251D-470A-A062-FA1922DFA9A8")
+        private val CLIENT_CHARACTERISTIC_CONFIG: UUID = UUID.fromString("000002902-0000-1000-8000-00805f9b34fb")
     }
 
     // 定数
@@ -95,7 +96,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
         // キャラクタリスティックが読み込まれたときの処理
         override fun onCharacteristicRead(
-            gatt: BluetoothGatt?,
+            gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic,
             status: Int
         ) {
@@ -103,21 +104,20 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 return
             }
             // キャラクタリスティックごとに個別の処理
-            if (UUID_CHARACTERISTIC_PRIVATE1.equals(characteristic.uuid)) {    // キャラクタリスティック１：データサイズは、2バイト（数値を想定。0～65,535）
-                val byteChara = characteristic.value
-                val bb: ByteBuffer = ByteBuffer.wrap(byteChara)
-                val strChara: String = java.lang.String.valueOf(bb.getShort())
+            if (UUID_CHARACTERISTIC_PRIVATE1 == characteristic.uuid) {    // キャラクタリスティック１：データサイズは、2バイト（数値を想定。0～65,535）
+                val intChara = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT8, 0)
+                val strChara = "${intChara}℃"
+//                val strChara: String = java.lang.String.valueOf(bb.getShort())
                 runOnUiThread { // GUIアイテムへの反映
-                    (findViewById<View>(R.id.textview_readchara1) as TextView).text =
-                        strChara
+                    (findViewById<View>(R.id.textview_readchara1) as TextView).text = strChara
                 }
                 return
             }
-            if (UUID_CHARACTERISTIC_PRIVATE2.equals(characteristic.uuid)) {    // キャラクタリスティック２：データサイズは、8バイト（文字列を想定。半角文字8文字）
-                val strChara = characteristic.getStringValue(0)
+            if (UUID_CHARACTERISTIC_PRIVATE2 == characteristic.uuid) {    // キャラクタリスティック２：データサイズは、8バイト（文字列を想定。半角文字8文字）
+                val intChara = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, 0)
+                val strChara = "${intChara}ms"
                 runOnUiThread { // GUIアイテムへの反映
-                    (findViewById<View>(R.id.textview_readchara2) as TextView).text =
-                        strChara
+                    (findViewById<View>(R.id.textview_readchara2) as TextView).text = strChara
                 }
                 return
             }
@@ -135,7 +135,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         mButton_Disconnect.setOnClickListener(this)
         mButton_ReadChara1 = findViewById(R.id.button_readchara1)
         mButton_ReadChara1.setOnClickListener(this)
-        mButton_ReadChara2 = findViewById(R.id.button_readchara2);
+        mButton_ReadChara2 = findViewById(R.id.button_readchara2)
         mButton_ReadChara2.setOnClickListener(this)
 
         // Android端末がBLEをサポートしてるかの確認
@@ -214,15 +214,15 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             disconnect() // 切断
             return
         }
-        if( mButton_ReadChara1.id == v.id )
+        if (mButton_ReadChara1.id == v.id)
         {
-            readCharacteristic( UUID_SERVICE_PRIVATE, UUID_CHARACTERISTIC_PRIVATE1 );
-            return;
+            readCharacteristic(UUID_SERVICE_PRIVATE, UUID_CHARACTERISTIC_PRIVATE1);
+            return
         }
-        if( mButton_ReadChara2.id == v.id )
+        if (mButton_ReadChara2.id == v.id)
         {
-            readCharacteristic( UUID_SERVICE_PRIVATE, UUID_CHARACTERISTIC_PRIVATE2 );
-            return;
+            readCharacteristic(UUID_SERVICE_PRIVATE, UUID_CHARACTERISTIC_PRIVATE2);
+            return
         }
     }
 
@@ -235,7 +235,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
     private var connectDeviceLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {result ->
 
-        val strDeviceName: String?
+        val strDeviceName: String
         val data: Intent? = result.data
         if (RESULT_OK == result.resultCode) {
             // デバイスリストアクティビティからの情報の取得
@@ -245,10 +245,10 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             strDeviceName = ""
             mDeviceAddress = ""
         }
-        (findViewById<View>(R.id.textview_devicename) as TextView).text =
-            strDeviceName
-        (findViewById<View>(R.id.textview_deviceaddress) as TextView).text =
-            mDeviceAddress
+        (findViewById<View>(R.id.textview_devicename) as TextView).text = strDeviceName
+        (findViewById<View>(R.id.textview_deviceaddress) as TextView).text = mDeviceAddress
+        (findViewById<View>(R.id.textview_readchara1) as TextView).text = ""
+        (findViewById<View>(R.id.textview_readchara2) as TextView).text = ""
     }
 
     // 機能の有効化ダイアログの操作結果
@@ -270,8 +270,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                     mDeviceAddress = ""
                 }
                 (findViewById<View>(R.id.textview_devicename) as TextView).text = strDeviceName
-                (findViewById<View>(R.id.textview_deviceaddress) as TextView).text =
-                    mDeviceAddress
+                (findViewById<View>(R.id.textview_deviceaddress) as TextView).text = mDeviceAddress
                 (findViewById<View>(R.id.textview_readchara1) as TextView).text = ""
                 (findViewById<View>(R.id.textview_readchara2) as TextView).text = ""
             }
